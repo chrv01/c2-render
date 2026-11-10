@@ -46,21 +46,36 @@
             refresh();
             setInterval(refresh, 5000);
         }
+        
         async function refresh() {
             const res = await fetch('/api/dashboard', { headers: { 'Authorization': token } });
             if (res.status === 401) return;
             const data = await res.json();
-            let devHtml = "";
-            data.devices.forEach(d => {
-                devHtml += `<div class="dev">🟢 ${d.id} — ${d.model} (Last seen: ${d.last_seen})</div>`;
-            });
-            document.getElementById('devices').innerHTML = devHtml || "No devices online.";
-            let outHtml = "";
+            
+            const devContainer = document.getElementById('devices');
+            devContainer.innerHTML = ""; // Clear previous
+            
+            if (data.devices.length === 0) {
+                devContainer.innerText = "No devices online.";
+            } else {
+                data.devices.forEach(d => {
+                    const div = document.createElement('div');
+                    div.className = 'dev';
+                    // Using textContent prevents HTML injection
+                    div.textContent = `🟢 ${d.id} — ${d.model} (Last seen: ${d.last_seen})`;
+                    devContainer.appendChild(div);
+                });
+            }
+            
+            const outContainer = document.getElementById('outputs');
+            let outText = "";
             data.outputs.forEach(o => {
-                outHtml += `<span class="dev">[${o.dev}]</span> ${o.text}\n`;
+                outText += `[${o.dev}] ${o.text}\n`;
             });
-            document.getElementById('outputs').innerText = outHtml;
+            // Using innerText prevents HTML injection
+            outContainer.innerText = outText;
         }
+        
         async function sendCmd() {
             const dev = document.getElementById('target_dev').value.trim();
             const cmd = document.getElementById('cmd').value.trim();
